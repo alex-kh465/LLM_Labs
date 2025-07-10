@@ -1,0 +1,7 @@
+transformers
+torch
+sentencepiece
+whisper
+PyMuPDF
+gtts
+playsound==1.2.2
