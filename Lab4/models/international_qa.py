@@ -1,39 +1,26 @@
+from transformers import AutoTokenizer, AutoModelForQuestionAnswering
+import torch
+
 def answer_french(question, context):
-    """Answer questions in French using rule-based responses"""
-    print("Processing French question...")
+    """Answer questions in French using CamemBERT fine-tuned on FQuAD"""
+    try:
+        print("Loading CamemBERT QA model...")
 
-    # French answers for solar system questions
-    french_answers = {
-        "solar system": "Le système solaire est un système gravitationnel composé du Soleil et de huit planètes qui l'orbitent. Il comprend également des lunes, des astéroïdes et des comètes.",
-        "planets": "Il y a huit planètes dans le système solaire: Mercure, Vénus, Terre, Mars, Jupiter, Saturne, Uranus et Neptune. Elles orbitent toutes autour du Soleil.",
-        "sun": "Le Soleil est une étoile située au centre du système solaire. Il fournit la lumière et la chaleur à toutes les planètes.",
-        "earth": "La Terre est la troisième planète du système solaire et la seule connue pour abriter la vie. Elle a une lune naturelle.",
-        "mars": "Mars est connue comme la planète rouge. C'est la quatrième planète du système solaire.",
-        "jupiter": "Jupiter est la plus grande planète du système solaire. C'est une géante gazeuse avec de nombreuses lunes.",
-        "saturn": "Saturne est célèbre pour ses magnifiques anneaux. C'est une géante gazeuse.",
-        "moon": "La Lune est le satellite naturel de la Terre. Elle orbite autour de notre planète."
-    }
+        model_name = "illuin/camembert-base-fquad"
+        tokenizer = AutoTokenizer.from_pretrained(model_name)
+        model = AutoModelForQuestionAnswering.from_pretrained(model_name)
 
-    # Find best match based on keywords in the question
-    question_lower = question.lower()
+        inputs = tokenizer(question, context, return_tensors="pt", truncation=True, max_length=512)
+        with torch.no_grad():
+            outputs = model(**inputs)
 
-    # Check for specific keywords
-    if any(word in question_lower for word in ["solar system", "système solaire", "systeme solaire"]):
-        return french_answers["solar system"]
-    elif any(word in question_lower for word in ["planets", "planètes", "planetes", "planet"]):
-        return french_answers["planets"]
-    elif any(word in question_lower for word in ["sun", "soleil"]):
-        return french_answers["sun"]
-    elif any(word in question_lower for word in ["earth", "terre"]):
-        return french_answers["earth"]
-    elif any(word in question_lower for word in ["mars"]):
-        return french_answers["mars"]
-    elif any(word in question_lower for word in ["jupiter"]):
-        return french_answers["jupiter"]
-    elif any(word in question_lower for word in ["saturn", "saturne"]):
-        return french_answers["saturn"]
-    elif any(word in question_lower for word in ["moon", "lune"]):
-        return french_answers["moon"]
-    else:
-        # Default answer about solar system
-        return french_answers["solar system"]
+        start_idx = torch.argmax(outputs.start_logits)
+        end_idx = torch.argmax(outputs.end_logits) + 1
+
+        answer = tokenizer.convert_tokens_to_string(
+            tokenizer.convert_ids_to_tokens(inputs["input_ids"][0][start_idx:end_idx])
+        )
+        return answer.strip()
+    except Exception as e:
+        print(f"Error in French QA: {e}")
+        return f"Sorry, I couldn't process your question in French. Error: {e}"
